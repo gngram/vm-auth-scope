@@ -72,3 +72,40 @@ The custom X.509 extension (OID `1.3.6.1.4.1.99999.1`) embedded in the certifica
 ```
 
 These capabilities map directly to the `host.json` configuration definitions, allowing robust RBAC/CBAC enforcement by any downstream service interpreting the certificate.
+
+## 5. NixOS Integration
+The repository now exposes native NixOS modules for easy deployment:
+- `nixos/modules/server.nix`: Configures the host CA daemon.
+- `nixos/modules/agent.nix`: Configures the guest agent logic.
+
+By using standard Nix attributes (e.g. `services.auth-scope-server.settings`), the JSON configuration files are deterministically generated, removing the need for manual JSON templating in your system deployments.
+
+## 6. Capability Evaluator (`auth-scope-evaluator`)
+
+We've provided a fully standalone, purely Rust evaluation engine to parse peer certificates and validate RBAC grants without relying on OpenSSL.
+
+### Features
+- Parses the X.509 structure to locate the `1.3.6.1.4.1.99999.1` OID extension using the `x509-parser` crate.
+- Safely unwraps the ASN.1 OCTET STRING to retrieve the embedded Capability JWT.
+- Uses `ring` to cryptographically verify the token against the CA's trusted Public Key.
+
+### Usage Example
+When your downstream service accepts a peer vsock connection (or gRPC request over vsock), simply parse the peer's certificate:
+
+```rust
+use auth_scope_evaluator::Evaluator;
+
+// Instantiate the evaluator, extracting the JWT and verifying the signature.
+let eval = Evaluator::from_cert_pem(&peer_cert_pem, &ca_cert_pem)
+    .expect("Failed to verify peer certificate capabilities");
+
+// Validate RPC module and method access
+if eval.can_call_rpc("my-local-vm", "auth", "data.read_secure") {
+    // Proceed with the RPC call
+}
+
+// Validate Path and Method access
+if eval.can_access_path("my-local-vm", "/api/v1/health", "read") {
+    // Proceed with HTTP route
+}
+```

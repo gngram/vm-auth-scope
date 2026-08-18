@@ -54,7 +54,17 @@
               vms."1" = {
                 vm_name = "local-vm";
                 entities = {
-                  service-a.caps = [];
+                  service-a.caps = [
+                    {
+                      target_vm = "local-vm";
+                      target_cid = 1;
+                      rpc_modules = [ "auth" ];
+                      rpc_methods = [ "data.read_secure" ];
+                      paths = [
+                        { path = "/api/v1/health"; access = [ "read" ]; }
+                      ];
+                    }
+                  ];
                   service-b.caps = [];
                   service-c.caps = [];
                 };
@@ -128,6 +138,9 @@
           machine.succeed("ls -la /var/lib/service-a/cert.pem")
           machine.succeed("ls -la /var/lib/service-b/cert.pem")
           machine.succeed("ls -la /var/lib/service-c/cert.pem")
+          
+          # Evaluate service-a's capabilities using the evaluator test binary
+          machine.succeed("auth-scope-eval-test /var/lib/service-a/cert.pem /etc/auth-scope/ca/ca-cert.pem")
           
           status = machine.succeed("systemctl status auth-scope-server.service")
           print(status)
