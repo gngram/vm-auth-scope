@@ -113,7 +113,6 @@ dependencies = [
  "anyhow",
  "auth-scope-proto",
  "clap",
- "libc",
  "rcgen",
  "ring",
  "serde",

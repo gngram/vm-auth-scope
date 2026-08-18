@@ -2,13 +2,14 @@
   pkgs,
   nixosModules,
   authScope,
+  authScopeGo,
 }: let
   testModule = {lib, ...}: {
     imports = [nixosModules.default];
 
     # We need vsock loopback support
     boot.kernelModules = ["vsock_loopback"];
-    environment.systemPackages = [pkgs.time];
+    environment.systemPackages = [pkgs.time authScopeGo];
 
     # CA Storage
     systemd.tmpfiles.rules = [
@@ -130,14 +131,30 @@ in
       print(output)
 
       # Verify certificates were created
-      machine.succeed("ls -la /var/lib/service-a/cert.pem")
-      machine.succeed("ls -la /var/lib/service-b/cert.pem")
-      machine.succeed("ls -la /var/lib/service-c/cert.pem")
+      with subtest("-- get certificates test --"):
+          machine.succeed("ls -la /var/lib/service-a/cert.pem")
+          machine.succeed("ls -la /var/lib/service-b/cert.pem")
+          machine.succeed("ls -la /var/lib/service-c/cert.pem")
+          print("\033[94m" + "\n-- get certificates test completed successfully --\n" + "\033[0m")
 
       # Evaluate service-a's capabilities using the evaluator test binary
-      machine.succeed("auth-scope-eval-test /var/lib/service-a/cert.pem /etc/auth-scope/ca/ca-cert.pem")
+      print("\n\n")
+      with subtest("-- capability eval test(rust) --"):
+          machine.succeed("auth-scope-eval-test /var/lib/service-a/cert.pem /etc/auth-scope/ca/ca-cert.pem")
+          print("\033[94m" + "-- capability eval test(rust) completed successfully --" + "\033[0m")
 
-      status = machine.succeed("systemctl status auth-scope-server.service")
-      print(status)
+      print("\n\n")
+      with subtest("-- capability eval test(go) --"):
+          machine.succeed("auth-scope-eval-test-go /var/lib/service-a/cert.pem /etc/auth-scope/ca/ca-cert.pem")
+          print("\033[94m" + "-- capability eval test(go) completed successfully --" + "\033[0m")
+
+
+      print("\n\n")
+      with subtest("-- get status of auth scope server --"):
+        status = machine.succeed("systemctl status auth-scope-server.service")
+        print(status)
+        print("\033[94m" + "-- status of auth scope server retrieved successfully --" + "\033[0m")
+        
+      print("\n\n")
     '';
   }

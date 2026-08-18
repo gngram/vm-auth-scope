@@ -12,8 +12,10 @@ echo "=> 1. Building the Rust workspace..."
 # Drop privileges just for the cargo build to avoid root ownership issues if possible
 if [ -n "$SUDO_USER" ]; then
     sudo -u "$SUDO_USER" cargo build --release
+    sudo -u "$SUDO_USER" bash -c "cd libs/go-libs/auth-scope-evaluator && go build -o ../../../target/release/auth-scope-eval-test-go ./cmd/auth-scope-eval-test-go"
 else
     cargo build --release
+    cd libs/go-libs/auth-scope-evaluator && go build -o ../../../target/release/auth-scope-eval-test-go ./cmd/auth-scope-eval-test-go && cd ../../..
 fi
 
 echo "=> 2. Setting up test host configuration..."
@@ -28,12 +30,12 @@ cat << EOF > test-host.json
   "cert_validity_days": 365,
   "vms": {
     "3": {
-      "vm_name": "testvm",
+      "vm_name": "local-vm",
       "entities": {
         "service-a": {
           "caps": [
             {
-              "target_vm": "testvm",
+              "target_vm": "local-vm",
               "target_cid": 3,
               "rpc_modules": ["auth"],
               "rpc_methods": ["data.read_secure"],
@@ -105,8 +107,13 @@ ip link set up dev lo || true
 echo "==> [Guest] Running auth-scope-agent..."
 $WORKSPACE_DIR/target/release/auth-scope-agent --config $WORKSPACE_DIR/test-agent.json
 
-echo "==> [Guest] Evaluating generated capabilities..."
+echo "==> [Guest] Evaluating generated capabilities (Rust)..."
 $WORKSPACE_DIR/target/release/auth-scope-eval-test \\
+    $WORKSPACE_DIR/tmp_agent/service-a-cert.pem \\
+    $WORKSPACE_DIR/tmp_agent/ca-cert.pem
+
+echo "==> [Guest] Evaluating generated capabilities (Go)..."
+$WORKSPACE_DIR/target/release/auth-scope-eval-test-go \\
     $WORKSPACE_DIR/tmp_agent/service-a-cert.pem \\
     $WORKSPACE_DIR/tmp_agent/ca-cert.pem
 
