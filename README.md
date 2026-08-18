@@ -1,1 +1,176 @@
-# vm-auth-scope
+# auth-scope
+
+A pure-Rust, zero-OpenSSL PKI system for securely issuing X.509 certificates
+to services across a multi-VM Linux vsock environment.
+
+## Architecture
+
+```
+┌──── HOST VM ────────────────────────────────────────────────────┐
+│  auth-scope-server                                              │
+│    • Listens on vsock port (default 9000) as the CA             │
+│    • Reads /etc/auth-scope/host.json for VM/entity policy       │
+│    • Issues ECDSA P-256 certificates with embedded capabilities │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │ vsock + TLS (rustls/ring)
+┌──── GUEST VM (CID N) ───────▼───────────────────────────────────┐
+│  auth-scope-agent                                               │
+│    • Reads /etc/auth-scope/agent.json for entity list           │
+│    • Generates per-entity ECDSA P-256 keypair + CSR             │
+│    • Sends CSR over vsock TLS, stores signed cert + key         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Crate Layout
+
+| Crate | Role |
+|---|---|
+| `auth-scope-proto` | Shared wire types (`CertRequest`/`CertResponse`), capability structs, framing codec |
+| `auth-scope-ca` | CA engine: init/load, CSR signing, JWT capability signer |
+| `auth-scope-server` | Host CA daemon binary (`auth-scope-server`) |
+| `auth-scope-agent` | Guest agent binary (`auth-scope-agent`) |
+
+## Capability Mechanism
+
+Capabilities are embedded in issued X.509 certificates as a custom extension
+(**OID `1.3.6.1.4.1.99999.1`**) whose value is a compact JWT signed by the CA's
+ECDSA P-256 private key.
+
+### JWT Payload Example
+
+```json
+{
+  "iss": "auth-scope-ca",
+  "sub": "frontend-api",
+  "vm":  "vm-frontend",
+  "cid": 42,
+  "iat": 1700000000,
+  "exp": 1731536000,
+  "caps": [
+    {
+      "target_vm":   "vm-backend",
+      "target_cid":  10,
+      "rpc_modules": ["auth", "storage"],
+      "rpc_methods": ["auth.login", "storage.read"],
+      "paths": [
+        { "path": "/api/v1/data",  "access": ["read"] },
+        { "path": "/api/v1/files", "access": ["read", "write"] }
+      ]
+    }
+  ]
+}
+```
+
+## Prerequisites
+
+- Linux with vsock support (`CONFIG_VHOST_VSOCK=y` in kernel)
+- Rust toolchain (1.75+)
+- Run both binaries as **root** (vsock bind + file chown require privilege)
+
+## Build
+
+```bash
+cargo build --release --workspace
+```
+
+Output binaries:
+- `target/release/auth-scope-server`
+- `target/release/auth-scope-agent`
+
+## Quick Start
+
+### 1. Host: Initialise the CA (one-time)
+
+```bash
+sudo auth-scope-server --init --config config-examples/host.json
+# → Writes /etc/auth-scope/ca/ca-cert.pem and ca-key.pem
+```
+
+### 2. Host: Start the CA daemon
+
+```bash
+sudo auth-scope-server --config /etc/auth-scope/host.json
+```
+
+### 3. Guest: Run the agent
+
+```bash
+# First, copy the CA cert from the host to the guest (out-of-band)
+scp host:/etc/auth-scope/ca/ca-cert.pem /etc/auth-scope/ca/ca-cert.pem
+
+# Request certificates for all configured entities
+sudo auth-scope-agent --config /etc/auth-scope/agent.json
+```
+
+## Configuration Reference
+
+### Host (`host.json`)
+
+| Field | Type | Description |
+|---|---|---|
+| `ca_cert_path` | string | Path to CA certificate PEM |
+| `ca_key_path` | string | Path to CA private key PEM |
+| `vsock_port` | number | vsock port to listen on |
+| `cert_validity_days` | number | Default cert lifetime (days) |
+| `vms` | object | Map of **CID string** → `VmEntry` |
+
+**`VmEntry`**
+
+| Field | Type | Description |
+|---|---|---|
+| `vm_name` | string | Human-readable VM name |
+| `entities` | object | Map of entity name → `EntityPolicy` |
+
+**`EntityPolicy`**
+
+| Field | Type | Description |
+|---|---|---|
+| `caps` | array | List of `Capability` grants |
+| `validity_days` | number? | Optional per-entity validity override |
+
+### Agent (`agent.json`)
+
+| Field | Type | Description |
+|---|---|---|
+| `server_ca_cert` | string | Path to CA cert for TLS pinning |
+| `vsock_host_cid` | number | Host CID (default: 2) |
+| `vsock_port` | number | Server vsock port |
+| `entities` | array | List of `EntityEntry` |
+
+**`EntityEntry`**
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | string | Entity name (must match host config) |
+| `cert_path` | string | Where to write the signed cert |
+| `key_path` | string | Where to write the private key |
+| `ca_path` | string | Where to write the CA cert |
+| `owner_uid` | number | File owner UID |
+| `owner_gid` | number | File owner GID |
+| `cert_mode` | string | Octal permissions for cert (default "0640") |
+| `key_mode` | string | Octal permissions for key (default "0600") |
+
+## Security Design Notes
+
+- **No OpenSSL / no C crypto library**: all cryptography via `ring` (pure Rust, with asm optimisations); TLS via `rustls`.
+- **CID validation**: the server cross-checks the CID claimed in the request payload against the actual vsock peer CID from the kernel — an attacker cannot spoof its own CID on the vsock layer.
+- **Certificate pinning**: the agent uses a custom `ServerCertVerifier` that accepts only the exact CA certificate bytes — standard CA trust anchors are not used.
+- **Capability JWT**: signed with the CA's ECDSA P-256 key using the IEEE P1363 fixed-length signature format (ES256). Any verifier with the CA's public key can validate capabilities without a separate PKI.
+- **Key file permissions**: the CA private key is written with mode 0600; entity keys are stored with the configured mode (default 0600).
+- **Root enforcement**: both binaries refuse to start without root privileges.
+
+## Dependency Inventory (no C library deps)
+
+| Crate | Purpose |
+|---|---|
+| `ring` | ECDSA P-256 signing/verification, random number generation |
+| `rustls` | TLS 1.3 over vsock (ring backend) |
+| `tokio-rustls` | Async TLS wrapping for tokio streams |
+| `rcgen` | X.509 cert/CSR generation (uses ring) |
+| `tokio-vsock` | Async vsock listener/connector |
+| `tokio` | Async runtime |
+| `serde` / `serde_json` | Serialisation |
+| `clap` | CLI argument parsing |
+| `tracing` | Structured logging |
+| `thiserror` / `anyhow` | Error handling |
+| `base64` | Base64url encoding for JWT |

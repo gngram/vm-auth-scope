@@ -1,0 +1,59 @@
+{
+  "ca_cert_path":       "/etc/auth-scope/ca/ca-cert.pem",
+  "ca_key_path":        "/etc/auth-scope/ca/ca-key.pem",
+  "vsock_port":         9000,
+  "cert_validity_days": 365,
+  "vms": {
+    "42": {
+      "vm_name": "vm-frontend",
+      "entities": {
+        "frontend-api": {
+          "caps": [
+            {
+              "target_vm":   "vm-backend",
+              "target_cid":  10,
+              "rpc_modules": ["auth", "storage"],
+              "rpc_methods": ["auth.login", "auth.logout", "storage.read"],
+              "paths": [
+                { "path": "/api/v1/data",  "access": ["read"] },
+                { "path": "/api/v1/files", "access": ["read", "write"] }
+              ]
+            }
+          ],
+          "validity_days": 365
+        },
+        "metrics-collector": {
+          "caps": [
+            {
+              "target_vm":   "vm-backend",
+              "target_cid":  10,
+              "rpc_modules": ["metrics"],
+              "rpc_methods": ["metrics.push"],
+              "paths": [
+                { "path": "/metrics/push", "access": ["write"] }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "10": {
+      "vm_name": "vm-backend",
+      "entities": {
+        "backend-db": {
+          "caps": [
+            {
+              "target_vm":   "vm-storage",
+              "target_cid":  20,
+              "rpc_modules": ["db"],
+              "rpc_methods": ["db.query", "db.exec"],
+              "paths": [
+                { "path": "/db/query", "access": ["read", "write"] }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

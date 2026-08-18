@@ -1,0 +1,46 @@
+[workspace]
+members = [
+    "crates/auth-scope-proto",
+    "crates/auth-scope-ca",
+    "crates/auth-scope-server",
+    "crates/auth-scope-agent",
+]
+resolver = "2"
+
+[workspace.dependencies]
+# Async runtime
+tokio        = { version = "1",    features = ["full"] }
+tokio-vsock  = { version = "0.5",  features = [] }
+rustls-pemfile = "2"
+
+# X.509 / CSR — pure Rust, uses ring internally
+# x509-parser is needed for from_ca_cert_pem and CertificateSigningRequestParams::from_pem
+rcgen = { version = "0.13", features = ["pem", "x509-parser"] }
+
+# Pure-Rust crypto primitives (ring is used by rcgen + rustls)
+ring = "0.17"
+
+# Serialisation
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Logging / tracing
+tracing            = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+# Error handling
+thiserror = "2"
+anyhow    = "1"
+
+# Base64url for JWT encoding
+base64 = "0.22"
+
+# System
+libc = "0.2"
+
+# Workspace-internal crates
+auth-scope-proto = { path = "crates/auth-scope-proto" }
+auth-scope-ca    = { path = "crates/auth-scope-ca" }
