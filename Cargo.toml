@@ -40,8 +40,6 @@ anyhow    = "1"
 # Base64url for JWT encoding
 base64 = "0.22"
 
-# System
-libc = "0.2"
 
 # Workspace-internal crates
 auth-scope-proto = { path = "crates/auth-scope-proto" }

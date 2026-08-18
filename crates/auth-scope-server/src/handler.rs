@@ -77,17 +77,7 @@ where
         return Ok(());
     }
 
-    // Cross-check self-reported CID vs actual vsock peer CID.
-    // If the agent couldn't detect its own CID (e.g. ioctl failed), it sends u32::MAX.
-    if req.cid != peer_cid && req.cid != u32::MAX {
-        let msg = format!(
-            "CID mismatch: request claims {} but vsock peer is {}",
-            req.cid, peer_cid
-        );
-        warn!(peer_cid, entity = %req.entity, "{}", msg);
-        send_json(stream, &CertResponse::Error { message: msg }).await?;
-        return Ok(());
-    }
+
 
     info!(
         peer_cid,

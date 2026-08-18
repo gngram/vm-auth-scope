@@ -8,9 +8,10 @@ pkgs.mkShell {
     rustfmt
     clippy
     alejandra
+    qemu
   ];
 
   shellHook = ''
-    alias run-test="nix build .#checks.''${pkgs.stdenv.hostPlatform.system}.vm-test --print-build-logs"
+    alias run-test="sudo ./run_integration_test.sh"
   '';
 }

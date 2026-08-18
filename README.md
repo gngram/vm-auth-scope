@@ -63,9 +63,18 @@ ECDSA P-256 private key.
 
 ## Prerequisites
 
-- Linux with vsock support (`CONFIG_VHOST_VSOCK=y` in kernel)
-- Rust toolchain (1.75+)
-- Run both binaries as **root** (vsock bind + file chown require privilege)
+### Non-Nix Platforms
+If you are developing on a standard Linux distribution (e.g. Ubuntu, Fedora, Arch), you must have the following installed:
+- `rustc` and `cargo` (Rust toolchain 1.75+)
+- `qemu-system-x86_64` (provided by `qemu` or `qemu-system-x86`)
+- `gcc` and `pkg-config` (for standard library compilation)
+- A Linux kernel with vsock support (`CONFIG_VHOST_VSOCK=y`)
+
+### Nix Platforms
+If you are using Nix, simply enter the development shell which natively provisions all required dependencies (including QEMU for the integration tests):
+```bash
+nix develop
+```
 
 ## Build
 
@@ -76,6 +85,22 @@ cargo build --release --workspace
 Output binaries:
 - `target/release/auth-scope-server`
 - `target/release/auth-scope-agent`
+- `target/release/auth-scope-eval-test`
+
+## Integration Testing
+
+We provide a robust integration test script (`run_integration_test.sh`) that natively provisions a lightweight QEMU virtual machine to validate the end-to-end vsock architecture on **any** Linux platform.
+
+This script directly mounts your host's root filesystem into the VM via `virtio-9p`, allowing the guest agent to execute natively against the host CA daemon over a real `vhost-vsock-pci` boundary without requiring any pre-built VM disk images.
+
+To run the test:
+```bash
+# On Nix platforms (via devShell alias):
+run-test
+
+# On non-Nix platforms:
+sudo ./run_integration_test.sh
+```
 
 ## Quick Start
 
