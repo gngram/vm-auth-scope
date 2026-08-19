@@ -2,3 +2,5 @@ result*
 target*
 # Ignore VIM backup files (hide them from reuse lint)
 *.swp
+.direnv*
+test-result*

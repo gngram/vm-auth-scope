@@ -20,7 +20,7 @@ fn main() {
     // rpc_modules: ["auth"]
     // rpc_methods: ["data.read_secure"]
     // paths: [ { path: "/api/v1/health", access: ["read"] } ]
-    
+
     println!("Evaluating RPC capabilities...");
     assert!(eval.can_call_rpc("local-vm", "auth", "any_method")); // entire module allowed
     assert!(eval.can_call_rpc("local-vm", "data", "read_secure")); // specific method allowed

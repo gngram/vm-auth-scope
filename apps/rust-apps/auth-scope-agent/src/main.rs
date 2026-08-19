@@ -14,7 +14,7 @@ use std::{path::PathBuf, process};
 
 use clap::Parser;
 use tracing::{error, info};
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt};
 
 mod client;
 mod config;
@@ -26,8 +26,8 @@ use config::AgentConfig;
 /// auth-scope guest agent — requests X.509 certificates from the host CA.
 #[derive(Debug, Parser)]
 #[command(
-    name    = "auth-scope-agent",
-    about   = "Guest agent: requests entity certificates from the auth-scope host CA",
+    name = "auth-scope-agent",
+    about = "Guest agent: requests entity certificates from the auth-scope host CA",
     version
 )]
 struct Cli {

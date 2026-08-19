@@ -2,7 +2,7 @@
 //!
 //! Frame format: [4-byte big-endian length][payload bytes]
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// Maximum allowed message size (4 MiB). Guards against malformed frames.
@@ -33,7 +33,11 @@ where
     let len = u32::from_be_bytes(len_buf) as usize;
 
     if len > MAX_MSG_BYTES {
-        bail!("incoming frame too large: {} bytes (max {})", len, MAX_MSG_BYTES);
+        bail!(
+            "incoming frame too large: {} bytes (max {})",
+            len,
+            MAX_MSG_BYTES
+        );
     }
 
     let mut buf = vec![0u8; len];

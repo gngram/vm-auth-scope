@@ -1,10 +1,10 @@
 //! Evaluator for auth-scope peer capability certificates.
 
-use auth_scope_ca::jwt::{verify_cap_jwt, CAP_EXTENSION_OID};
+use auth_scope_ca::jwt::{CAP_EXTENSION_OID, verify_cap_jwt};
 use auth_scope_proto::caps::CapClaim;
 use thiserror::Error;
-use x509_parser::pem::parse_x509_pem;
 use x509_parser::parse_x509_certificate;
+use x509_parser::pem::parse_x509_pem;
 
 #[derive(Debug, Error)]
 pub enum EvalError {
@@ -32,7 +32,11 @@ impl Evaluator {
             .map_err(|e| EvalError::X509Parse(format!("CA PEM parse failed: {:?}", e)))?;
         let (_, ca_cert) = parse_x509_certificate(&ca_pem.contents)
             .map_err(|e| EvalError::X509Parse(format!("CA cert parse failed: {:?}", e)))?;
-        let spki = ca_cert.tbs_certificate.subject_pki.subject_public_key.as_ref();
+        let spki = ca_cert
+            .tbs_certificate
+            .subject_pki
+            .subject_public_key
+            .as_ref();
 
         // Parse peer cert to extract the capability JWT from custom extension
         let (_, peer_pem) = parse_x509_pem(peer_cert_pem.as_bytes())
@@ -51,16 +55,18 @@ impl Evaluator {
         }
 
         let jwt_bytes = jwt_bytes.ok_or(EvalError::MissingCapabilityExtension)?;
-        
+
         // The extension value is an ASN.1 OCTET STRING wrapping the payload.
         // We do a minimal unwrap of the DER tag (0x04) and length.
         if jwt_bytes.is_empty() || jwt_bytes[0] != 0x04 {
-            return Err(EvalError::X509Parse("Extension value is not an OCTET STRING".into()));
+            return Err(EvalError::X509Parse(
+                "Extension value is not an OCTET STRING".into(),
+            ));
         }
         let mut offset = 1;
         let len_byte = jwt_bytes[offset];
         offset += 1;
-        
+
         let mut len = 0;
         if len_byte & 0x80 == 0 {
             len = len_byte as usize;
@@ -71,7 +77,7 @@ impl Evaluator {
             }
             offset += num_bytes;
         }
-        
+
         let inner_bytes = &jwt_bytes[offset..offset + len];
 
         let jwt_str = std::str::from_utf8(inner_bytes)
@@ -127,7 +133,7 @@ mod tests {
     use super::*;
     use auth_scope_ca::{
         ca::CertificateAuthority,
-        signing::{sign_csr, SigningRequest},
+        signing::{SigningRequest, sign_csr},
     };
     use auth_scope_proto::caps::{Capability, PathAccess};
     use rcgen::{CertificateParams, KeyPair, PKCS_ECDSA_P256_SHA256};

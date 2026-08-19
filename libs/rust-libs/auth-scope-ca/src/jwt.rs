@@ -5,10 +5,10 @@
 //!
 //! The JWT is embedded as a custom X.509 extension (OID 1.3.6.1.4.1.99999.1).
 
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use ring::{
     rand::SystemRandom,
-    signature::{EcdsaKeyPair, ECDSA_P256_SHA256_FIXED_SIGNING},
+    signature::{ECDSA_P256_SHA256_FIXED_SIGNING, EcdsaKeyPair},
 };
 
 use auth_scope_proto::caps::CapClaim;
@@ -32,8 +32,7 @@ impl CapJwtSigner {
     /// Construct a signer from raw PKCS#8 DER bytes of an ECDSA P-256 key.
     pub fn from_pkcs8_der(key_der: &[u8]) -> Result<Self, CaError> {
         let rng = SystemRandom::new();
-        let key_pair =
-            EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, key_der, &rng)?;
+        let key_pair = EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, key_der, &rng)?;
         Ok(Self { key_pair, rng })
     }
 
@@ -60,11 +59,8 @@ impl CapJwtSigner {
 ///
 /// `public_key_der` must be the raw uncompressed public key point (65 bytes)
 /// or the SubjectPublicKeyInfo DER of the CA's ECDSA P-256 key.
-pub fn verify_cap_jwt(
-    jwt: &str,
-    public_key_spki_der: &[u8],
-) -> Result<CapClaim, CaError> {
-    use ring::signature::{UnparsedPublicKey, ECDSA_P256_SHA256_FIXED};
+pub fn verify_cap_jwt(jwt: &str, public_key_spki_der: &[u8]) -> Result<CapClaim, CaError> {
+    use ring::signature::{ECDSA_P256_SHA256_FIXED, UnparsedPublicKey};
 
     let parts: Vec<&str> = jwt.splitn(3, '.').collect();
     if parts.len() != 3 {

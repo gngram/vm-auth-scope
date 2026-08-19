@@ -4,19 +4,15 @@
 //! root certificate and saves both key and cert as PEM files.
 //! On subsequent starts it loads them from disk.
 
-use std::{
-    fs,
-    path::Path,
-};
+use std::{fs, path::Path};
 
 use rcgen::{
-    BasicConstraints, CertificateParams, DistinguishedName, DnType, IsCa,
-    KeyPair, KeyUsagePurpose, PKCS_ECDSA_P256_SHA256,
+    BasicConstraints, CertificateParams, DistinguishedName, DnType, IsCa, KeyPair, KeyUsagePurpose,
+    PKCS_ECDSA_P256_SHA256,
 };
 use tracing::{debug, info};
 
 use crate::error::CaError;
-
 
 /// Holds the root CA's PEM-encoded key and certificate, and the raw
 /// DER bytes needed for direct ring/rustls operations.
@@ -46,8 +42,8 @@ impl CertificateAuthority {
             source: e,
         })?;
 
-        let key_pair = KeyPair::from_pem(&key_pem)
-            .map_err(|e| CaError::KeyParseFailed(e.to_string()))?;
+        let key_pair =
+            KeyPair::from_pem(&key_pem).map_err(|e| CaError::KeyParseFailed(e.to_string()))?;
         let key_der = key_pair.serialize_der();
 
         // Parse the cert DER from PEM.
@@ -65,11 +61,7 @@ impl CertificateAuthority {
     /// Generate a new CA and write PEM files to disk.
     ///
     /// If `idempotent` is `true` and the files already exist, this is a no-op.
-    pub fn init(
-        cert_path: &Path,
-        key_path: &Path,
-        idempotent: bool,
-    ) -> Result<Self, CaError> {
+    pub fn init(cert_path: &Path, key_path: &Path, idempotent: bool) -> Result<Self, CaError> {
         if idempotent && cert_path.exists() && key_path.exists() {
             info!("CA files already exist — skipping init (idempotent)");
             return Self::load(cert_path, key_path);
@@ -78,8 +70,8 @@ impl CertificateAuthority {
         info!("Generating new ECDSA P-256 CA key and self-signed certificate");
 
         // Generate key pair.
-        let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256)
-            .map_err(CaError::RcgenError)?;
+        let key_pair =
+            KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).map_err(CaError::RcgenError)?;
 
         // Build certificate parameters.
         let mut params = CertificateParams::default();
@@ -95,14 +87,14 @@ impl CertificateAuthority {
         ];
         // 10-year validity.
         params.not_before = rcgen::date_time_ymd(2024, 1, 1);
-        params.not_after  = rcgen::date_time_ymd(2034, 1, 1);
+        params.not_after = rcgen::date_time_ymd(2034, 1, 1);
 
         let cert = params.self_signed(&key_pair)?;
 
         let cert_pem = cert.pem();
-        let key_pem  = key_pair.serialize_pem();
+        let key_pem = key_pair.serialize_pem();
         let cert_der = cert.der().to_vec();
-        let key_der  = key_pair.serialize_der();
+        let key_der = key_pair.serialize_der();
 
         // Write files — create parent directories first.
         if let Some(parent) = cert_path.parent() {
@@ -130,8 +122,7 @@ impl CertificateAuthority {
 
     /// Re-create the rcgen [`KeyPair`] from the stored PEM (needed by signing).
     pub fn key_pair(&self) -> Result<KeyPair, CaError> {
-        KeyPair::from_pem(&self.key_pem)
-            .map_err(|e| CaError::KeyParseFailed(e.to_string()))
+        KeyPair::from_pem(&self.key_pem).map_err(|e| CaError::KeyParseFailed(e.to_string()))
     }
 
     /// Re-create the rcgen [`rcgen::Certificate`] from PEM (needed as
@@ -152,8 +143,8 @@ impl CertificateAuthority {
 
 /// Parse the first CERTIFICATE PEM block and return the raw DER bytes.
 fn pem_to_der(pem: &str) -> Option<Vec<u8>> {
-    use std::io::BufReader;
     use rustls_pemfile::certs;
+    use std::io::BufReader;
 
     // Collect into a Vec first so the BufReader borrow is dropped.
     let mut reader = BufReader::new(pem.as_bytes());

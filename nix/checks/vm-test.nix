@@ -35,6 +35,25 @@
       group = "service-c";
     };
 
+    # Systemd Sockets for Server and Agent
+    systemd.sockets.auth-scope-server = {
+      description = "Auth-Scope Server Socket";
+      wantedBy = [ "sockets.target" ];
+      socketConfig = {
+        ListenStream = "vsock::900";
+        FileDescriptorName = "server-auth-port";
+      };
+    };
+
+    systemd.sockets.auth-scope-agent = {
+      description = "Auth-Scope Agent Socket";
+      wantedBy = [ "sockets.target" ];
+      socketConfig = {
+        ListenStream = "vsock::901";
+        FileDescriptorName = "client-auth-port";
+      };
+    };
+
     # Use our NixOS modules to configure auth-scope
     services.auth-scope-server = {
       enable = true;
@@ -43,6 +62,8 @@
         ca_cert_path = "/etc/auth-scope/ca/ca-cert.pem";
         ca_key_path = "/etc/auth-scope/ca/ca-key.pem";
         vsock_port = 900;
+        peer_port = 901;
+        vsock_fd_name = "server-auth-port";
         cert_validity_days = 365;
         vms."1" = {
           vm_name = "local-vm";
@@ -74,6 +95,8 @@
       settings = {
         vsock_host_cid = 1;
         vsock_port = 900;
+        client_port = 901;
+        vsock_fd_name = "client-auth-port";
         entities = [
           {
             name = "service-a";
@@ -122,11 +145,12 @@ in
 
       # Wait for the server to be listening
       machine.wait_for_unit("auth-scope-server.service")
-      machine.sleep(2) # Give it a moment to bind
+      machine.succeed("sleep 2") # Give it a moment to bind
 
-      # Run the agent wrapped in 'time' to measure performance
-      # We call the binary directly from the package since we disabled the agent service auto-start
-      output = machine.succeed("env time -v auth-scope-agent --config /etc/auth-scope/agent.json 2>&1")
+      # Start the agent socket to ensure systemd sets up the file descriptor
+      machine.succeed("systemctl start auth-scope-agent.socket")
+      # Start the agent service via systemctl (so it gets systemd socket activation fds)
+      output = machine.succeed("systemctl start auth-scope-agent.service && journalctl -u auth-scope-agent.service")
 
       print(output)
 
@@ -154,7 +178,7 @@ in
         status = machine.succeed("systemctl status auth-scope-server.service")
         print(status)
         print("\033[94m" + "-- status of auth scope server retrieved successfully --" + "\033[0m")
-        
+
       print("\n\n")
     '';
   }

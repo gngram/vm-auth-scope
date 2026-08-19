@@ -1,8 +1,6 @@
 //! ECDSA P-256 keypair and PKCS#10 CSR generation for a single entity.
 
-use rcgen::{{
-    CertificateParams, DistinguishedName, DnType, KeyPair, PKCS_ECDSA_P256_SHA256,
-}};
+use rcgen::{CertificateParams, DistinguishedName, DnType, KeyPair, PKCS_ECDSA_P256_SHA256};
 
 use anyhow::Result;
 
@@ -24,7 +22,7 @@ pub fn generate_csr(entity_name: &str) -> Result<GeneratedCsr> {
     dn.push(DnType::OrganizationName, "auth-scope");
     params.distinguished_name = dn;
 
-    let csr  = params.serialize_request(&key)?;
+    let csr = params.serialize_request(&key)?;
     let csr_pem = csr.pem()?;
     let key_pem = key.serialize_pem();
 

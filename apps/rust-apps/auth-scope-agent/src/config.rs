@@ -17,6 +17,11 @@ pub struct AgentConfig {
     pub vsock_port: u32,
     /// List of entities (services/processes) to request certificates for.
     pub entities: Vec<EntityEntry>,
+    /// The client port to bind to when dialing.
+    #[serde(default = "default_client_port")]
+    pub client_port: u32,
+    /// Optional file descriptor name to connect on.
+    pub vsock_fd_name: Option<String>,
 }
 
 fn default_host_cid() -> u32 {
@@ -25,6 +30,10 @@ fn default_host_cid() -> u32 {
 
 fn default_vsock_port() -> u32 {
     900
+}
+
+fn default_client_port() -> u32 {
+    901
 }
 
 /// Configuration for a single entity that needs a certificate.
@@ -50,19 +59,23 @@ pub struct EntityEntry {
     pub key_mode: String,
 }
 
-fn default_cert_mode() -> String { "0640".into() }
-fn default_key_mode()  -> String { "0600".into() }
+fn default_cert_mode() -> String {
+    "0640".into()
+}
+fn default_key_mode() -> String {
+    "0600".into()
+}
 
 impl AgentConfig {
     /// Load and parse the config from a JSON file.
     pub fn from_file(path: &std::path::Path) -> anyhow::Result<Self> {
         let data = std::fs::read_to_string(path)?;
         let cfg: Self = serde_json::from_str(&data)?;
-        
+
         if cfg.vsock_port >= 1000 {
             anyhow::bail!("vsock_port must be less than 1000, got {}", cfg.vsock_port);
         }
-        
+
         Ok(cfg)
     }
 }

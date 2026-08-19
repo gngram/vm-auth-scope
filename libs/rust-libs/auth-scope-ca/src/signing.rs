@@ -2,9 +2,7 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use rcgen::{
-    CertificateSigningRequestParams, CustomExtension, KeyUsagePurpose,
-};
+use rcgen::{CertificateSigningRequestParams, CustomExtension, KeyUsagePurpose};
 use tracing::info;
 
 use auth_scope_proto::caps::{CapClaim, Capability};
@@ -12,7 +10,7 @@ use auth_scope_proto::caps::{CapClaim, Capability};
 use crate::{
     ca::CertificateAuthority,
     error::CaError,
-    jwt::{CapJwtSigner, CAP_EXTENSION_OID},
+    jwt::{CAP_EXTENSION_OID, CapJwtSigner},
 };
 
 /// Parameters for signing a single CSR.
@@ -35,10 +33,7 @@ pub struct SigningRequest<'a> {
 ///
 /// The issued certificate carries the capability JWT as a non-critical
 /// custom X.509 extension under OID 1.3.6.1.4.1.99999.1.
-pub fn sign_csr(
-    ca: &CertificateAuthority,
-    req: SigningRequest<'_>,
-) -> Result<String, CaError> {
+pub fn sign_csr(ca: &CertificateAuthority, req: SigningRequest<'_>) -> Result<String, CaError> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|e| CaError::JwtError(e.to_string()))?
@@ -51,7 +46,7 @@ pub fn sign_csr(
     let claim = CapClaim {
         iss: "auth-scope-ca".into(),
         sub: req.entity.clone(),
-        vm:  req.vm_name.clone(),
+        vm: req.vm_name.clone(),
         cid: req.cid,
         iat: now,
         exp,
@@ -84,10 +79,7 @@ pub fn sign_csr(
     // wrapped in a DER OCTET STRING.
     let jwt_bytes = jwt.into_bytes();
     let ext_value = encode_der_octet_string(&jwt_bytes);
-    let mut cap_ext = CustomExtension::from_oid_content(
-        CAP_EXTENSION_OID,
-        ext_value,
-    );
+    let mut cap_ext = CustomExtension::from_oid_content(CAP_EXTENSION_OID, ext_value);
     cap_ext.set_criticality(false);
     csr_params.params.custom_extensions.push(cap_ext);
 
@@ -101,8 +93,8 @@ pub fn sign_csr(
     csr_params.params.not_after = rcgen::date_time_ymd(end_year as i32, 1, 1);
 
     // Get the CA as an rcgen Certificate (issuer).
-    let ca_cert  = ca.rcgen_cert()?;
-    let ca_kp    = ca.key_pair()?;
+    let ca_cert = ca.rcgen_cert()?;
+    let ca_kp = ca.key_pair()?;
 
     // Sign.
     let leaf_cert = csr_params.signed_by(&ca_cert, &ca_kp)?;

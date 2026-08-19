@@ -14,7 +14,7 @@ use std::{path::PathBuf, process, sync::Arc};
 
 use clap::Parser;
 use tracing::{error, info};
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt};
 
 use auth_scope_ca::CertificateAuthority;
 
@@ -28,8 +28,8 @@ use config::HostConfig;
 /// auth-scope host CA server.
 #[derive(Debug, Parser)]
 #[command(
-    name    = "auth-scope-server",
-    about   = "Vsock certificate authority for multi-VM environments",
+    name = "auth-scope-server",
+    about = "Vsock certificate authority for multi-VM environments",
     version
 )]
 struct Cli {
@@ -103,7 +103,7 @@ async fn main() {
     }
 
     let cfg = Arc::new(cfg);
-    let ca  = Arc::new(ca);
+    let ca = Arc::new(ca);
 
     if let Err(e) = listener::run_listener(cfg, ca).await {
         error!(error = %e, "Listener terminated with error");

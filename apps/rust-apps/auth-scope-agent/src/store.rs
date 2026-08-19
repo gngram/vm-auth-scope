@@ -2,8 +2,8 @@
 
 use std::{
     fs,
+    os::unix::fs::{PermissionsExt, chown},
     path::Path,
-    os::unix::fs::{chown, PermissionsExt},
 };
 
 use anyhow::{Context, Result};
@@ -18,17 +18,35 @@ use crate::config::EntityEntry;
 pub fn store_entity_credentials(
     entity: &EntityEntry,
     cert_pem: &str,
-    key_pem:  &str,
-    ca_pem:   &str,
+    key_pem: &str,
+    ca_pem: &str,
 ) -> Result<()> {
-    write_file(&entity.cert_path, cert_pem.as_bytes(), &entity.cert_mode, entity.owner_uid, entity.owner_gid)
-        .with_context(|| format!("writing cert to {}", entity.cert_path.display()))?;
+    write_file(
+        &entity.cert_path,
+        cert_pem.as_bytes(),
+        &entity.cert_mode,
+        entity.owner_uid,
+        entity.owner_gid,
+    )
+    .with_context(|| format!("writing cert to {}", entity.cert_path.display()))?;
 
-    write_file(&entity.key_path, key_pem.as_bytes(), &entity.key_mode, entity.owner_uid, entity.owner_gid)
-        .with_context(|| format!("writing key to {}", entity.key_path.display()))?;
+    write_file(
+        &entity.key_path,
+        key_pem.as_bytes(),
+        &entity.key_mode,
+        entity.owner_uid,
+        entity.owner_gid,
+    )
+    .with_context(|| format!("writing key to {}", entity.key_path.display()))?;
 
-    write_file(&entity.ca_path, ca_pem.as_bytes(), &entity.cert_mode, entity.owner_uid, entity.owner_gid)
-        .with_context(|| format!("writing CA cert to {}", entity.ca_path.display()))?;
+    write_file(
+        &entity.ca_path,
+        ca_pem.as_bytes(),
+        &entity.cert_mode,
+        entity.owner_uid,
+        entity.owner_gid,
+    )
+    .with_context(|| format!("writing CA cert to {}", entity.ca_path.display()))?;
 
     info!(
         entity = %entity.name,
@@ -49,12 +67,11 @@ fn write_file(path: &Path, data: &[u8], mode_str: &str, uid: u32, gid: u32) -> R
             .with_context(|| format!("creating directory {}", parent.display()))?;
     }
 
-    fs::write(path, data)
-        .with_context(|| format!("writing {}", path.display()))?;
+    fs::write(path, data).with_context(|| format!("writing {}", path.display()))?;
 
     // Set permissions.
-    let mode = parse_octal_mode(mode_str)
-        .with_context(|| format!("parsing mode '{}'", mode_str))?;
+    let mode =
+        parse_octal_mode(mode_str).with_context(|| format!("parsing mode '{}'", mode_str))?;
     let perms = fs::Permissions::from_mode(mode);
     fs::set_permissions(path, perms)
         .with_context(|| format!("setting permissions on {}", path.display()))?;
@@ -70,6 +87,5 @@ fn write_file(path: &Path, data: &[u8], mode_str: &str, uid: u32, gid: u32) -> R
 fn parse_octal_mode(s: &str) -> Result<u32> {
     let trimmed = s.trim_start_matches('0');
     let trimmed = if trimmed.is_empty() { "0" } else { trimmed };
-    u32::from_str_radix(trimmed, 8)
-        .with_context(|| format!("'{}' is not a valid octal mode", s))
+    u32::from_str_radix(trimmed, 8).with_context(|| format!("'{}' is not a valid octal mode", s))
 }

@@ -12,19 +12,16 @@ use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{error, info, warn};
 
+use auth_scope_ca::{
+    CertificateAuthority,
+    signing::{SigningRequest, sign_csr},
+};
 use auth_scope_proto::{
     codec::{recv_json, send_json},
     wire::{CertRequest, CertResponse, PROTOCOL_VERSION},
 };
-use auth_scope_ca::{
-    signing::{sign_csr, SigningRequest},
-    CertificateAuthority,
-};
 
-use crate::{
-    config::HostConfig,
-    policy::resolve,
-};
+use crate::{config::HostConfig, policy::resolve};
 
 /// Handle a single authenticated connection.
 ///
@@ -77,8 +74,6 @@ where
         return Ok(());
     }
 
-
-
     info!(
         peer_cid,
         entity = %req.entity,
@@ -89,10 +84,7 @@ where
     let decision = match resolve(config, peer_cid, &req.entity) {
         Some(d) => d,
         None => {
-            let msg = format!(
-                "CID {} / entity '{}' not authorised",
-                peer_cid, req.entity
-            );
+            let msg = format!("CID {} / entity '{}' not authorised", peer_cid, req.entity);
             warn!(peer_cid, entity = %req.entity, "{}", msg);
             send_json(stream, &CertResponse::Error { message: msg }).await?;
             return Ok(());
@@ -103,11 +95,11 @@ where
     let cert_pem = sign_csr(
         ca,
         SigningRequest {
-            csr_pem:      &req.csr_pem,
-            entity:       req.entity.clone(),
-            vm_name:      decision.vm_name,
-            cid:          peer_cid,
-            claims:       decision.caps,
+            csr_pem: &req.csr_pem,
+            entity: req.entity.clone(),
+            vm_name: decision.vm_name,
+            cid: peer_cid,
+            claims: decision.caps,
             validity_days: decision.validity_days,
         },
     )

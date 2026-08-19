@@ -1,6 +1,4 @@
-{
-  buildGoModule,
-}:
+{buildGoModule}:
 buildGoModule {
   pname = "auth-scope-eval-test-go";
   version = "0.1.0";

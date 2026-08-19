@@ -22,11 +22,11 @@ type PathAccess struct {
 }
 
 type Capability struct {
-	TargetVM    string       `json:"target_vm"`
-	TargetCID   uint32       `json:"target_cid"`
-	RPCModules  []string     `json:"rpc_modules"`
-	RPCMethods  []string     `json:"rpc_methods"`
-	Paths       []PathAccess `json:"paths"`
+	TargetVM   string       `json:"target_vm"`
+	TargetCID  uint32       `json:"target_cid"`
+	RPCModules []string     `json:"rpc_modules"`
+	RPCMethods []string     `json:"rpc_methods"`
+	Paths      []PathAccess `json:"paths"`
 }
 
 type CapClaim struct {

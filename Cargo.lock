@@ -113,6 +113,7 @@ dependencies = [
  "anyhow",
  "auth-scope-proto",
  "clap",
+ "libc",
  "rcgen",
  "ring",
  "serde",
@@ -122,6 +123,7 @@ dependencies = [
  "tokio-vsock",
  "tracing",
  "tracing-subscriber",
+ "vsock",
 ]
 
 [[package]]
@@ -172,6 +174,7 @@ dependencies = [
  "auth-scope-ca",
  "auth-scope-proto",
  "clap",
+ "libc",
  "rcgen",
  "serde",
  "serde_json",

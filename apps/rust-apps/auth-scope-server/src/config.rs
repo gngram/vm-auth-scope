@@ -25,6 +25,11 @@ pub struct HostConfig {
     ///
     /// CID is stored as a string key because JSON object keys are always strings.
     pub vms: HashMap<String, VmEntry>,
+    /// Expected peer port of the client agent.
+    #[serde(default = "default_peer_port")]
+    pub peer_port: u32,
+    /// Optional file descriptor name to listen on.
+    pub vsock_fd_name: Option<String>,
 }
 
 fn default_vsock_port() -> u32 {
@@ -33,6 +38,10 @@ fn default_vsock_port() -> u32 {
 
 fn default_validity_days() -> u32 {
     365
+}
+
+fn default_peer_port() -> u32 {
+    901
 }
 
 /// Per-VM configuration entry. CID is the primary key (stored as the map key).
@@ -58,11 +67,11 @@ impl HostConfig {
     pub fn from_file(path: &std::path::Path) -> anyhow::Result<Self> {
         let data = std::fs::read_to_string(path)?;
         let cfg: Self = serde_json::from_str(&data)?;
-        
+
         if cfg.vsock_port >= 1000 {
             anyhow::bail!("vsock_port must be less than 1000, got {}", cfg.vsock_port);
         }
-        
+
         Ok(cfg)
     }
 }

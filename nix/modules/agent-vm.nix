@@ -1,0 +1,115 @@
+# my-vm.nix
+# This is a standard NixOS configuration, just like your system's configuration.nix
+{
+  config,
+  pkgs,
+  ...
+}: let
+  authScope = pkgs.callPackage ../pkgs/auth-scope-rust.nix {};
+  authScopeGo = pkgs.callPackage ../pkgs/auth-scope-go.nix {};
+in {
+  imports = [
+    ./auth-scope.nix
+  ];
+
+  # Set a hostname for the VM
+  networking.hostName = "auth-scope";
+  nix.settings.experimental-features = ["nix-command" "flakes"];
+  nix.nixPath = ["nixpkgs=${pkgs.path}"];
+
+  # --- User Accounts ---
+  # Create a user 'demo' with password 'nixos' so you can log in.
+  users.users.demo = {
+    isNormalUser = true;
+    initialPassword = "nixos";
+    extraGroups = ["wheel"]; # For sudo access
+  };
+
+  # Set the timezone to your current location for convenience
+  time.timeZone = "Asia/Dubai";
+
+  # --- Shared Workspace & VSOCK Configuration ---
+  virtualisation.vmVariant = {
+    virtualisation.sharedDirectories.workspace = {
+      source = "/home/gangaram/playground/vm-auth-scope";
+      target = "/workspace";
+    };
+
+    virtualisation.qemu.options = [
+      "-device vhost-vsock-pci,guest-cid=3"
+    ];
+  };
+
+  # --- Auth-Scope Agent Socket (Port Reservation) ---
+  systemd.sockets.auth-scope-agent = {
+    description = "Auth-Scope Agent Socket";
+    wantedBy = [ "sockets.target" ];
+    socketConfig = {
+      ListenStream = "vsock::901";
+      FileDescriptorName = "client-auth-port";
+    };
+  };
+
+  # --- Auth-Scope Agent Configuration ---
+  services.auth-scope-agent = {
+    enable = true;
+    package = authScope;
+    settings = {
+      vsock_host_cid = 2;
+      vsock_port = 900;
+      client_port = 901;
+      vsock_fd_name = "client-auth-port";
+      entities = [
+        {
+          name = "service-b";
+          cert_path = "/workspace/test-result/service-b-cert.pem";
+          key_path = "/workspace/test-result/service-b-key.pem";
+          ca_path = "/workspace/test-result/service-b-ca.pem";
+          owner_uid = 0;
+          owner_gid = 0;
+          cert_mode = "0644";
+          key_mode = "0600";
+        }
+        {
+          name = "service-a";
+          cert_path = "/workspace/test-result/service-a-cert.pem";
+          key_path = "/workspace/test-result/service-a-key.pem";
+          ca_path = "/workspace/test-result/service-a-ca.pem";
+          owner_uid = 0;
+          owner_gid = 0;
+          cert_mode = "0644";
+          key_mode = "0600";
+        }
+      ];
+    };
+  };
+
+  # --- Evaluator Test Coordination Service ---
+  systemd.services.auth-scope-evaluator-test = {
+    description = "Run Auth-Scope Evaluator Test and Shutdown VM";
+    wantedBy = ["multi-user.target"];
+    after = ["auth-scope-agent.service"];
+    requires = ["auth-scope-agent.service"];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = pkgs.writeShellScript "run-eval-test" ''
+        # Run tests and capture result
+        echo "==> Evaluating generated capabilities (Rust)..."
+        if ${authScope}/bin/auth-scope-eval-test \
+          /workspace/test-result/service-a-cert.pem \
+          /workspace/test-result/ca-cert.pem && \
+          echo "==> Evaluating generated capabilities (Go)..." && \
+          ${authScopeGo}/bin/auth-scope-eval-test-go \
+          /workspace/test-result/service-a-cert.pem \
+          /workspace/test-result/ca-cert.pem; then
+            echo "SUCCESS" > /workspace/test-result/result-summary
+        else
+            echo "FAILURE" > /workspace/test-result/result-summary
+        fi
+      '';
+    };
+  };
+
+  # --- Basic System Settings ---
+  system.stateVersion = "26.05";
+}
