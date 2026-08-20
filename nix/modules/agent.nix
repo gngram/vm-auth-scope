@@ -53,9 +53,8 @@ in {
       after = [ "dev-vsock.device" ];
       before = [ "sysinit.target" ];
       serviceConfig = {
-        Type = "oneshot";
         ExecStart = "${cfg.package}/bin/auth-scope-agent --config /etc/auth-scope/agent.json";
-        RemainAfterExit = true;
+        Restart = "always";
       };
     };
   };

@@ -129,8 +129,14 @@ in
       machine.succeed("sleep 2") # Give it a moment to bind
 
       # Start the agent service via systemctl
-      output = machine.succeed("systemctl start auth-scope-agent.service && journalctl -u auth-scope-agent.service")
+      machine.succeed("systemctl start auth-scope-agent.service")
 
+      # Wait for certificates to be created by the agent
+      machine.wait_for_file("/var/lib/service-a/cert.pem")
+      machine.wait_for_file("/var/lib/service-b/cert.pem")
+      machine.wait_for_file("/var/lib/service-c/cert.pem")
+
+      output = machine.succeed("journalctl -u auth-scope-agent.service")
       print(output)
 
       # Verify certificates were created

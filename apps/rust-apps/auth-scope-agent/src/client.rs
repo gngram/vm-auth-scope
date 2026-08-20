@@ -111,7 +111,28 @@ pub async fn run_agent(config: &AgentConfig) -> Result<()> {
         }
     }
 
-    Ok(())
+    // Secure the client port by binding a listener to it so no other process can use it.
+    // We retry binding in case the port is still lingering in TIME_WAIT from the last client connection.
+    let addr = tokio_vsock::VsockAddr::new(tokio_vsock::VMADDR_CID_ANY, config.client_port);
+    let mut attempts = 0;
+    let _listener = loop {
+        match tokio_vsock::VsockListener::bind(addr) {
+            Ok(l) => break l,
+            Err(e) => {
+                if attempts < 10 {
+                    attempts += 1;
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    continue;
+                }
+                return Err(e).context(format!("binding persistent listener to client port {} to secure it", config.client_port));
+            }
+        }
+    };
+    
+    info!(port = config.client_port, "Agent keeping client port secured. Sleeping indefinitely...");
+    loop {
+        tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+    }
 }
 
 /// Request and store a certificate for a single entity.
