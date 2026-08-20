@@ -17,8 +17,6 @@ pub struct PathAccess {
 pub struct Capability {
     /// Human-readable name of the target VM.
     pub target_vm: String,
-    /// vsock CID of the target VM.
-    pub target_cid: u32,
     /// RPC service modules accessible on the target.
     pub rpc_modules: Vec<String>,
     /// Specific RPC methods accessible (format: "module.method").

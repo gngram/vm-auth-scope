@@ -81,15 +81,26 @@ where
     );
 
     // Policy lookup.
-    let decision = match resolve(config, peer_cid, &req.entity) {
+    let decision = match resolve(config, &req.vm_name, &req.entity) {
         Some(d) => d,
         None => {
-            let msg = format!("CID {} / entity '{}' not authorised", peer_cid, req.entity);
-            warn!(peer_cid, entity = %req.entity, "{}", msg);
+            let msg = format!("VM '{}' / entity '{}' not authorised", req.vm_name, req.entity);
+            warn!(peer_cid, vm_name = %req.vm_name, entity = %req.entity, "{}", msg);
             send_json(stream, &CertResponse::Error { message: msg }).await?;
             return Ok(());
         }
     };
+
+    // Verify CID
+    if decision.vm_cid != peer_cid {
+        let msg = format!(
+            "CID verification failed for VM '{}': expected {}, got peer CID {}",
+            req.vm_name, decision.vm_cid, peer_cid
+        );
+        error!(peer_cid, vm_name = %req.vm_name, expected_cid = decision.vm_cid, "{}", msg);
+        // Immediately return error to close the connection without sending a response
+        return Err(anyhow::anyhow!("CID verification failed"));
+    }
 
     // Sign CSR.
     let cert_pem = sign_csr(

@@ -135,7 +135,7 @@ sudo auth-scope-agent --config /etc/auth-scope/agent.json
 |---|---|---|
 | `ca_cert_path` | string | Path to CA certificate PEM |
 | `ca_key_path` | string | Path to CA private key PEM |
-| `vsock_port` | number | vsock port to listen on |
+| `server_port` | number | vsock port to listen on |
 | `cert_validity_days` | number | Default cert lifetime (days) |
 | `vms` | object | Map of **CID string** → `VmEntry` |
 
@@ -159,7 +159,7 @@ sudo auth-scope-agent --config /etc/auth-scope/agent.json
 |---|---|---|
 | `server_ca_cert` | string | Path to CA cert for TLS pinning |
 | `vsock_host_cid` | number | Host CID (default: 2) |
-| `vsock_port` | number | Server vsock port |
+| `server_port` | number | Server vsock port |
 | `entities` | array | List of `EntityEntry` |
 
 **`EntityEntry`**

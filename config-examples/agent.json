@@ -1,27 +1,27 @@
 {
-  "server_ca_cert":  "/etc/auth-scope/ca/ca-cert.pem",
-  "vsock_host_cid":  2,
-  "vsock_port":      9000,
+  "vm_name": "vm-frontend",
+  "server_port": 900,
+  "client_port": 901,
   "entities": [
     {
-      "name":      "frontend-api",
+      "name": "frontend-api",
       "cert_path": "/etc/frontend-api/tls/cert.pem",
-      "key_path":  "/etc/frontend-api/tls/key.pem",
-      "ca_path":   "/etc/frontend-api/tls/ca.pem",
+      "key_path": "/etc/frontend-api/tls/key.pem",
+      "ca_path": "/etc/frontend-api/tls/ca.pem",
       "owner_uid": 1001,
       "owner_gid": 1001,
       "cert_mode": "0640",
-      "key_mode":  "0600"
+      "key_mode": "0600"
     },
     {
-      "name":      "metrics-collector",
+      "name": "metrics-collector",
       "cert_path": "/etc/metrics-collector/tls/cert.pem",
-      "key_path":  "/etc/metrics-collector/tls/key.pem",
-      "ca_path":   "/etc/metrics-collector/tls/ca.pem",
+      "key_path": "/etc/metrics-collector/tls/key.pem",
+      "ca_path": "/etc/metrics-collector/tls/ca.pem",
       "owner_uid": 1002,
       "owner_gid": 1002,
       "cert_mode": "0640",
-      "key_mode":  "0600"
+      "key_mode": "0600"
     }
   ]
 }

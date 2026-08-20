@@ -9,7 +9,7 @@
   authScopeGo = pkgs.callPackage ../pkgs/auth-scope-go.nix {};
 in {
   imports = [
-    ./auth-scope.nix
+    ../modules/auth-scope.nix
   ];
 
   # Set a hostname for the VM
@@ -31,7 +31,7 @@ in {
   # --- Shared Workspace & VSOCK Configuration ---
   virtualisation.vmVariant = {
     virtualisation.sharedDirectories.workspace = {
-      source = "/home/gangaram/playground/vm-auth-scope";
+      source = toString ./../..;
       target = "/workspace";
     };
 
@@ -40,25 +40,13 @@ in {
     ];
   };
 
-  # --- Auth-Scope Agent Socket (Port Reservation) ---
-  systemd.sockets.auth-scope-agent = {
-    description = "Auth-Scope Agent Socket";
-    wantedBy = [ "sockets.target" ];
-    socketConfig = {
-      ListenStream = "vsock::901";
-      FileDescriptorName = "client-auth-port";
-    };
-  };
-
   # --- Auth-Scope Agent Configuration ---
-  services.auth-scope-agent = {
+  services.auth-scope.agent = {
     enable = true;
     package = authScope;
     settings = {
-      vsock_host_cid = 2;
-      vsock_port = 900;
-      client_port = 901;
-      vsock_fd_name = "client-auth-port";
+      vm_name = "local-vm";
+      server_port = 900;
       entities = [
         {
           name = "service-b";

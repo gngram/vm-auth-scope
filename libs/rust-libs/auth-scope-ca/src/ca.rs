@@ -67,6 +67,15 @@ impl CertificateAuthority {
             return Self::load(cert_path, key_path);
         }
 
+        if !idempotent {
+            if cert_path.exists() {
+                let _ = fs::remove_file(cert_path);
+            }
+            if key_path.exists() {
+                let _ = fs::remove_file(key_path);
+            }
+        }
+
         info!("Generating new ECDSA P-256 CA key and self-signed certificate");
 
         // Generate key pair.

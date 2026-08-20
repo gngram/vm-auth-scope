@@ -10,6 +10,8 @@ pub const PROTOCOL_VERSION: u32 = 1;
 pub struct CertRequest {
     /// Must equal [`PROTOCOL_VERSION`].
     pub version: u32,
+    /// Name of the VM requesting the certificate.
+    pub vm_name: String,
     /// Name of the entity (service/process) requesting the certificate.
     pub entity: String,
     /// PEM-encoded PKCS#10 Certificate Signing Request.

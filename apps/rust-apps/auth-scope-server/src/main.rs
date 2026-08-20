@@ -14,7 +14,7 @@ use std::{path::PathBuf, process, sync::Arc};
 
 use clap::Parser;
 use tracing::{error, info};
-use tracing_subscriber::{EnvFilter, fmt};
+use tracing_subscriber::{fmt, EnvFilter};
 
 use auth_scope_ca::CertificateAuthority;
 
@@ -42,9 +42,9 @@ struct Cli {
     )]
     config: PathBuf,
 
-    /// Initialise the CA (generate key + self-signed cert if absent), then exit.
+    /// Generate the CA key and certificate (overwriting existing ones if they exist) before starting the server.
     #[arg(long)]
-    init: bool,
+    genkey: bool,
 }
 
 #[tokio::main]
@@ -75,14 +75,14 @@ async fn main() {
     };
 
     // Initialise or load the CA.
-    let ca = if cli.init {
-        match CertificateAuthority::init(&cfg.ca_cert_path, &cfg.ca_key_path, true) {
+    let ca = if cli.genkey {
+        match CertificateAuthority::init(&cfg.ca_cert_path, &cfg.ca_key_path, false) {
             Ok(ca) => {
-                info!("CA initialised successfully");
+                info!("CA initialised/regenerated successfully");
                 ca
             }
             Err(e) => {
-                error!(error = %e, "CA initialisation failed");
+                error!(error = %e, "CA initialisation/regeneration failed");
                 process::exit(1);
             }
         }
@@ -90,17 +90,11 @@ async fn main() {
         match CertificateAuthority::load(&cfg.ca_cert_path, &cfg.ca_key_path) {
             Ok(ca) => ca,
             Err(e) => {
-                error!(error = %e, "Failed to load CA — run with --init first");
+                error!(error = %e, "Failed to load CA — CA files must exist or run with --genkey");
                 process::exit(1);
             }
         }
     };
-
-    if cli.init {
-        // --init mode: done after CA setup.
-        info!("Initialisation complete. Run without --init to start the server.");
-        return;
-    }
 
     let cfg = Arc::new(cfg);
     let ca = Arc::new(ca);

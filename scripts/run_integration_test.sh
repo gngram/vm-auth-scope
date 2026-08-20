@@ -28,18 +28,17 @@ cat <<EOF >$WORKSPACE_DIR/test-result/temp/test-host.json
 {
   "ca_cert_path": "$WORKSPACE_DIR/test-result/ca-cert.pem",
   "ca_key_path": "$WORKSPACE_DIR/test-result/ca-key.pem",
-  "vsock_port": 900,
+  "server_port": 900,
   "peer_port": 901,
   "cert_validity_days": 365,
   "vms": {
-    "3": {
-      "vm_name": "local-vm",
+    "local-vm": {
+      "vm_cid": 3,
       "entities": {
         "service-a": {
           "caps": [
             {
               "target_vm": "local-vm",
-              "target_cid": 3,
               "rpc_modules": ["auth"],
               "rpc_methods": ["data.read_secure"],
               "paths": [
@@ -56,11 +55,8 @@ cat <<EOF >$WORKSPACE_DIR/test-result/temp/test-host.json
 }
 EOF
 export RUST_LOG='debug'
-echo "=> 3. Initialising CA..."
-./target/release/auth-scope-server --init --config $WORKSPACE_DIR/test-result/temp/test-host.json
-
-echo "=> 4. Starting host CA server in background..."
-./target/release/auth-scope-server --config $WORKSPACE_DIR/test-result/temp/test-host.json >$WORKSPACE_DIR/test-result/logs/server.log 2>&1 &
+echo "=> 3. Starting host CA server in background (generating keys)..."
+./target/release/auth-scope-server --config $WORKSPACE_DIR/test-result/temp/test-host.json --genkey >$WORKSPACE_DIR/test-result/logs/server.log 2>&1 &
 SERVER_PID=$!
 
 sleep 2 # Let server bind
@@ -68,9 +64,9 @@ sleep 2 # Let server bind
 echo "=> 5. Building NixOS Guest VM..."
 # Build the VM as the original user to avoid Nix environment problems under sudo
 if [ -n "$SUDO_USER" ]; then
-    sudo -u "$SUDO_USER" nix-build '<nixpkgs/nixos>' -A vm -I nixos-config=nix/modules/agent-vm.nix -o target/result-vm
+    sudo -u "$SUDO_USER" nix-build '<nixpkgs/nixos>' -A vm -I nixos-config=nix/checks/agent-vm.nix -o target/result-vm
 else
-    nix-build '<nixpkgs/nixos>' -A vm -I nixos-config=nix/modules/agent-vm.nix -o target/result-vm
+    nix-build '<nixpkgs/nixos>' -A vm -I nixos-config=nix/checks/agent-vm.nix -o target/result-vm
 fi
 
 # Ensure any previous test result is removed

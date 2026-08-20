@@ -157,7 +157,6 @@ mod tests {
         // 3. Define capability granted to peer
         let caps = vec![Capability {
             target_vm: "my-vm".into(),
-            target_cid: 42,
             rpc_modules: vec!["auth".into()],
             rpc_methods: vec!["data.read_secure".into()],
             paths: vec![PathAccess {
