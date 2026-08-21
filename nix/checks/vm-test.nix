@@ -75,6 +75,7 @@
     services.auth-scope.agent = {
       enable = true;
       package = authScope;
+      secureCredentials = true;
       settings = {
         vm_name = "local-vm";
         server_port = 900;
@@ -88,6 +89,7 @@
             owner_gid = 0;
             cert_mode = "0644";
             key_mode = "0600";
+            user_service = false;
           }
           {
             name = "service-b";
@@ -98,6 +100,7 @@
             owner_gid = 0;
             cert_mode = "0644";
             key_mode = "0600";
+            user_service = false;
           }
           {
             name = "service-c";
@@ -108,6 +111,7 @@
             owner_gid = 0;
             cert_mode = "0644";
             key_mode = "0600";
+            user_service = true;
           }
         ];
       };
@@ -139,22 +143,42 @@ in
       output = machine.succeed("journalctl -u auth-scope-agent.service")
       print(output)
 
-      # Verify certificates were created
-      with subtest("-- get certificates test --"):
-          machine.succeed("ls -la /var/lib/service-a/cert.pem")
-          machine.succeed("ls -la /var/lib/service-b/cert.pem")
-          machine.succeed("ls -la /var/lib/service-c/cert.pem")
-          print("\033[94m" + "\n-- get certificates test completed successfully --\n" + "\033[0m")
+      # Verify certificates are encrypted and not plain PEM
+      with subtest("-- verify systemd credentials encryption --"):
+          cert_a_content = machine.succeed("cat /var/lib/service-a/cert.pem")
+          if "-----BEGIN CERTIFICATE-----" in cert_a_content:
+              raise Exception("Expected cert.pem for service-a to be encrypted, but found plaintext PEM!")
+          
+          key_a_content = machine.succeed("cat /var/lib/service-a/key.pem")
+          if "-----BEGIN PRIVATE KEY-----" in key_a_content:
+              raise Exception("Expected key.pem for service-a to be encrypted, but found plaintext private key!")
 
-      # Evaluate service-a's capabilities using the evaluator test binary
+          cert_c_content = machine.succeed("cat /var/lib/service-c/cert.pem")
+          if "-----BEGIN CERTIFICATE-----" in cert_c_content:
+              raise Exception("Expected cert.pem for service-c to be encrypted, but found plaintext PEM!")
+
+          # Decrypt credentials using systemd-creds
+          machine.succeed("systemd-creds decrypt --name=service-a /var/lib/service-a/cert.pem /tmp/decrypted_cert.pem")
+          machine.succeed("systemd-creds decrypt --name=service-a /var/lib/service-a/key.pem /tmp/decrypted_key.pem")
+          
+          # Decrypt service-c (user service) using --user flag
+          machine.succeed("systemd-creds --user decrypt --name=service-c /var/lib/service-c/cert.pem /tmp/decrypted_cert_c.pem")
+
+          # Verify decrypted files are valid PEMs
+          machine.succeed("grep -q -- '-----BEGIN CERTIFICATE-----' /tmp/decrypted_cert.pem")
+          machine.succeed("grep -q -- '-----BEGIN PRIVATE KEY-----' /tmp/decrypted_key.pem")
+          machine.succeed("grep -q -- '-----BEGIN CERTIFICATE-----' /tmp/decrypted_cert_c.pem")
+          print("\033[94m" + "\n-- systemd credentials encryption verified successfully --\n" + "\033[0m")
+
+      # Evaluate service-a's capabilities using the decrypted certificate
       print("\n\n")
       with subtest("-- capability eval test(rust) --"):
-          machine.succeed("auth-scope-eval-test /var/lib/service-a/cert.pem /etc/auth-scope/ca/ca-cert.pem")
+          machine.succeed("auth-scope-eval-test /tmp/decrypted_cert.pem /etc/auth-scope/ca/ca-cert.pem")
           print("\033[94m" + "-- capability eval test(rust) completed successfully --" + "\033[0m")
 
       print("\n\n")
       with subtest("-- capability eval test(go) --"):
-          machine.succeed("auth-scope-eval-test-go /var/lib/service-a/cert.pem /etc/auth-scope/ca/ca-cert.pem")
+          machine.succeed("auth-scope-eval-test-go /tmp/decrypted_cert.pem /etc/auth-scope/ca/ca-cert.pem")
           print("\033[94m" + "-- capability eval test(go) completed successfully --" + "\033[0m")
 
 

@@ -16,6 +16,8 @@ pub struct CertRequest {
     pub entity: String,
     /// PEM-encoded PKCS#10 Certificate Signing Request.
     pub csr_pem: String,
+    /// Whether this request is for a user service or system service.
+    pub user_service: bool,
 }
 
 /// Response sent by the host CA to the guest agent.

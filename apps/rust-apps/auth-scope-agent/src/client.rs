@@ -101,9 +101,9 @@ async fn connect_with_local_port(host_cid: u32, port: u32, local_port: u32) -> R
 }
 
 /// Request and store certificates for every entity in the config.
-pub async fn run_agent(config: &AgentConfig) -> Result<()> {
+pub async fn run_agent(config: &AgentConfig, secure_credentials: bool) -> Result<()> {
     for entity in &config.entities {
-        match request_cert(config, entity).await {
+        match request_cert(config, entity, secure_credentials).await {
             Ok(()) => info!(entity = %entity.name, "Certificate stored successfully"),
             Err(e) => {
                 tracing::error!(entity = %entity.name, error = ?e, "Certificate request failed")
@@ -136,7 +136,7 @@ pub async fn run_agent(config: &AgentConfig) -> Result<()> {
 }
 
 /// Request and store a certificate for a single entity.
-async fn request_cert(config: &AgentConfig, entity: &EntityEntry) -> Result<()> {
+async fn request_cert(config: &AgentConfig, entity: &EntityEntry, secure_credentials: bool) -> Result<()> {
     info!(entity = %entity.name, "Requesting certificate from host CA");
 
     // Generate a fresh keypair and CSR for this entity.
@@ -159,6 +159,7 @@ async fn request_cert(config: &AgentConfig, entity: &EntityEntry) -> Result<()> 
         vm_name: config.vm_name.clone(),
         entity: entity.name.clone(),
         csr_pem: generated.csr_pem,
+        user_service: entity.user_service,
     };
     send_json(&mut stream, &req)
         .await
@@ -174,7 +175,7 @@ async fn request_cert(config: &AgentConfig, entity: &EntityEntry) -> Result<()> 
             cert_pem,
             ca_cert_pem,
         } => {
-            store_entity_credentials(entity, &cert_pem, &generated.key_pem, &ca_cert_pem)?;
+            store_entity_credentials(entity, &cert_pem, &generated.key_pem, &ca_cert_pem, secure_credentials)?;
         }
         CertResponse::Error { message } => {
             bail!("Server rejected request for '{}': {}", entity.name, message);

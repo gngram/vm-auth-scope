@@ -39,6 +39,10 @@ struct Cli {
         value_name = "FILE"
     )]
     config: PathBuf,
+
+    /// Whether to encrypt the credentials using systemd-creds.
+    #[arg(long, default_value_t = false)]
+    secure_credentials: bool,
 }
 
 #[tokio::main]
@@ -68,7 +72,7 @@ async fn main() {
 
     info!("Starting auth-scope-agent");
 
-    if let Err(e) = client::run_agent(&cfg).await {
+    if let Err(e) = client::run_agent(&cfg, cli.secure_credentials).await {
         error!(error = %e, "Agent encountered a fatal error");
         process::exit(1);
     }

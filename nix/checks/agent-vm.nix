@@ -44,6 +44,7 @@ in {
   services.auth-scope.agent = {
     enable = true;
     package = authScope;
+    secureCredentials = true;
     settings = {
       vm_name = "local-vm";
       server_port = 900;
@@ -57,6 +58,7 @@ in {
           owner_gid = 0;
           cert_mode = "0644";
           key_mode = "0600";
+          user_service = false;
         }
         {
           name = "service-a";
@@ -67,6 +69,7 @@ in {
           owner_gid = 0;
           cert_mode = "0644";
           key_mode = "0600";
+          user_service = false;
         }
       ];
     };
@@ -80,15 +83,29 @@ in {
     requires = ["auth-scope-agent.service"];
     serviceConfig = {
       Type = "oneshot";
+      LoadCredentialEncrypted = [
+        "service-a:/workspace/test-result/service-a-cert.pem"
+      ];
       ExecStart = pkgs.writeShellScript "run-eval-test" ''
-        # Run tests and capture result
+        # Run tests and capture result using systemd credentials
+        echo "==> Displaying loaded systemd credentials..."
+        echo "Decrypted service-a cert path: $CREDENTIALS_DIRECTORY/service-a"
+        
+        # Verify that the loaded credential contains the decrypted PEM cert
+        if grep -q "BEGIN CERTIFICATE" "$CREDENTIALS_DIRECTORY/service-a" 2>/dev/null; then
+            echo "==> Successfully verified that systemd loaded and decrypted service-a cert!"
+        else
+            echo "ERROR: service-a cert not decrypted by systemd!"
+            exit 1
+        fi
+
         echo "==> Evaluating generated capabilities (Rust)..."
         if ${authScope}/bin/auth-scope-eval-test \
-          /workspace/test-result/service-a-cert.pem \
+          "$CREDENTIALS_DIRECTORY/service-a" \
           /workspace/test-result/ca-cert.pem && \
           echo "==> Evaluating generated capabilities (Go)..." && \
           ${authScopeGo}/bin/auth-scope-eval-test-go \
-          /workspace/test-result/service-a-cert.pem \
+          "$CREDENTIALS_DIRECTORY/service-a" \
           /workspace/test-result/ca-cert.pem; then
             echo "SUCCESS" > /workspace/test-result/result-summary
         else

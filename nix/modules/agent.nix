@@ -21,6 +21,12 @@ in {
       description = "The auth-scope package to use.";
     };
 
+    secureCredentials = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Encrypt credentials using systemd-creds.";
+    };
+
     settings = lib.mkOption {
       type = (pkgs.formats.json {}).type;
       default = {};
@@ -53,7 +59,8 @@ in {
       after = [ "dev-vsock.device" ];
       before = [ "sysinit.target" ];
       serviceConfig = {
-        ExecStart = "${cfg.package}/bin/auth-scope-agent --config /etc/auth-scope/agent.json";
+        ExecStart = "${cfg.package}/bin/auth-scope-agent --config /etc/auth-scope/agent.json"
+          + (lib.optionalString cfg.secureCredentials " --secure-credentials");
         Restart = "always";
       };
     };

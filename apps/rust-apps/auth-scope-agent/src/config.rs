@@ -50,6 +50,9 @@ pub struct EntityEntry {
     /// Unix permission mode for the private key file (e.g. "0600").
     #[serde(default = "default_key_mode")]
     pub key_mode: String,
+    /// Whether this is a user service or system service.
+    #[serde(default)]
+    pub user_service: bool,
 }
 
 fn default_cert_mode() -> String {
